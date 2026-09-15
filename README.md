@@ -165,23 +165,9 @@ flake8 app/
 - Only share DuckDB connection with trusted components
 - SQL validation prevents but does not guarantee all injection attacks
 
-## Contributing
-
-1. Create a feature branch
-2. Make changes and test locally
-3. Submit a pull request with a clear description
-
-## License
-
-Specify your license here (e.g., MIT, Apache 2.0).
-
 ## Authors
 
 Team 30 — NextChallenge 2026
-
-## Support
-
-For issues or questions, please open a GitHub issue or contact the team.
 
 ---
 
