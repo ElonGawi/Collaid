@@ -1,177 +1,188 @@
-# Next Level Challenge 2026 — Team 30
+# Collaid — AI-Powered Data Governance Query Engine
 
-Welcome to your team's code repository! 🎉
+Collaid is an intelligent data query system that bridges business glossaries with physical databases. It lets users ask data questions in business terms rather than SQL, leveraging AI agents and data governance metadata to discover, understand, and query data safely.
 
-This page is where your team will store and submit your code during **Next Level Challenge 2026**. Read this guide carefully before you start — it explains everything step by step, even if you have never used Git or GitLab before.
+## Overview
 
---- 
+Collaid integrates:
+- **Collibra** data governance platform for business term definitions and data lineage
+- **Databricks Delta Sharing** for secure data access
+- **DuckDB** for in-memory SQL execution
+- **Claude AI** agent for natural language understanding and query generation
 
-## 🗂️ What is this page?
+### Key Features
 
-This is a **GitLab repository** (often called a "repo"). Think of it as a **shared Google Drive folder, but for code**. Your whole team can access it, upload files, and update them. At the deadline, the jury will look at whatever is stored here.
+- **Business Glossary Search**: Find governed business terms, metrics, and data entities
+- **Data Lineage Tracing**: Follow relations from business terms → logical layer → physical columns
+- **Schema Discovery**: View physical database schemas with Collibra-governed descriptions
+- **Natural Language Queries**: Ask questions in plain English; the agent translates them to SQL
+- **Secure Query Execution**: SQL is validated and executed against an in-memory DuckDB instance
 
-You are on the page for **Team 30**. Only your team has write access (can upload files) to this repository.
+## Project Structure
+
+```
+app/
+├── agent/           # AI agent tools and dispatch logic
+├── collibra/        # Collibra API integration and data models
+├── data/            # Data loading and database engine
+│   ├── delta_loader.py      # Loads data from Databricks Delta Sharing
+│   └── duckdb_engine.py     # In-memory SQL execution with query validation
+└── api/             # REST API endpoints
+```
+
+## Getting Started
+
+### Prerequisites
+
+- Python 3.10+
+- Access to a Databricks workspace with Delta Sharing enabled
+- Access to a Collibra instance
+- Environment with `pandas`, `delta-sharing`, `duckdb`, and Claude SDK packages
+
+### Installation
+
+1. Clone the repository
+2. Create a Python virtual environment:
+   ```bash
+   python -m venv .venv
+   source .venv/bin/activate  # On Windows: .venv\Scripts\Activate.ps1
+   ```
+3. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+### Configuration
+
+**⚠️ IMPORTANT: Do NOT commit credentials to version control.**
+
+Create a `config.json` file in the project root (add to `.gitignore`):
+
+```json
+{
+  "shareCredentialsVersion": 1,
+  "bearerToken": "<your-databricks-bearer-token>",
+  "endpoint": "<your-delta-sharing-endpoint>",
+  "expirationTime": "<token-expiration-date>"
+}
+```
+
+Alternatively, set environment variables:
+- `DATABRICKS_BEARER_TOKEN`
+- `DATABRICKS_ENDPOINT`
+
+## Usage
+
+### Loading Data
+
+The `delta_loader.py` module loads Centercode project data from Databricks:
+
+```python
+from app.data.delta_loader import load_all_tables
+
+tables = await load_all_tables("config.json", limit=1000)
+```
+
+Available tables:
+- `zcc_act_stat` — Activity status
+- `zcc_knt_mstr` — Contact master
+- `zcc_prj_hdr` — Project header
+- `zcc_prt_mtrc` — Port metrics
+- `zcc_ptm_lnk` — Project/test item links
+- `zcc_qa_sat` — QA satisfaction
+- `zcc_tkt_itm` — Ticket items
+- `zcc_usr_mstr` — User master
+
+### Agent Tools
+
+The AI agent has access to these tools:
+
+- **`search_business_terms(query)`** — Search for governed definitions
+- **`get_asset_definition(asset_id)`** — Fetch full asset metadata
+- **`get_asset_relations(asset_id)`** — Trace data lineage
+- **`get_physical_schema()`** — View all tables and columns
+- **`execute_sql(sql)`** — Run DuckDB queries (with safety validation)
+
+### Example Workflow
+
+```python
+from app.agent.tools import dispatch_tool
+from app.collibra.cache import CollibraCache
+from app.data.duckdb_engine import DuckDBEngine
+
+# Search for a business term
+result = await dispatch_tool(
+    "search_business_terms",
+    {"query": "active tester"},
+    cache,
+    engine
+)
+
+# Get the definition
+result = await dispatch_tool(
+    "get_asset_definition",
+    {"asset_id": result["results"][0]["id"]},
+    cache,
+    engine
+)
+
+# Execute a SQL query
+result = await dispatch_tool(
+    "execute_sql",
+    {"sql": "SELECT COUNT(*) FROM zcc_usr_mstr"},
+    cache,
+    engine
+)
+```
+
+## Safety & Validation
+
+- SQL queries are validated to prevent dangerous operations (DROP, DELETE, INSERT, UPDATE, etc.)
+- Queries execute against an **in-memory DuckDB instance only** — no changes to production data
+- Collibra asset lookups ensure queries are semantically aligned with governed definitions
+
+## Development
+
+### Running Tests
+
+```bash
+pytest tests/
+```
+
+### Code Style
+
+This project follows PEP 8. Use:
+```bash
+black app/
+flake8 app/
+```
+
+## Security Considerations
+
+- **Never commit `config.json`** — it contains authentication tokens
+- Add `config.json` to `.gitignore`
+- Bearer tokens should be rotated regularly
+- Only share DuckDB connection with trusted components
+- SQL validation prevents but does not guarantee all injection attacks
+
+## Contributing
+
+1. Create a feature branch
+2. Make changes and test locally
+3. Submit a pull request with a clear description
+
+## License
+
+Specify your license here (e.g., MIT, Apache 2.0).
+
+## Authors
+
+Team 30 — NextChallenge 2026
+
+## Support
+
+For issues or questions, please open a GitHub issue or contact the team.
 
 ---
 
-## 💻 What is Git?
-
-**Git** is a free tool that helps teams share and manage code. Instead of emailing files back and forth or using a USB stick, Git lets everyone on your team upload their changes to this repository from their own computer.
-
-You will only need a few simple commands — we explain exactly what to type below.
-
----
-
-## 🚀 Step-by-step guide
-
-### ✅ Step 1 — Create a GitLab account
-
-If you don't have a GitLab account yet:
-
-1. Go to [gitlab.com](https://gitlab.com) and click **Register**
-2. Fill in your details and verify your email address
-3. Done! You will receive an email invitation to join this repository — click the link in that email to get access
-
----
-
-### ✅ Step 2 — Install Git on your computer
-
-**On Windows:**
-1. Go to [git-scm.com/downloads](https://git-scm.com/downloads) and click **Download for Windows**
-2. Run the installer and click "Next" on everything — the default settings are fine
-3. After installing, search for **Git Bash** in your Start menu and open it — this will be your terminal for the rest of this guide
-
-**On Mac:**
-1. Open the **Terminal** app (press Cmd + Space, type "Terminal", press Enter)
-2. Type `git --version` and press Enter
-3. If Git is not installed yet, a popup will appear asking you to install it — click Install and follow the steps
-
-**On Linux:**
-```
-sudo apt install git
-```
-
-> ✅ **Check:** Open a terminal and type `git --version` — you should see something like `git version 2.x.x`. If you do, Git is ready!
-
----
-
-### ✅ Step 3 — Clone this repository (do this once)
-
-"Cloning" means **downloading a copy of this repository to your computer** so you can add your files to it. You only need to do this once per computer.
-
-1. Open your terminal (Git Bash on Windows, Terminal on Mac/Linux)
-2. Go to the folder where you want to store your project. For example, to go to your Desktop:
-```
-cd Desktop
-```
-3. Run this command to download the repository:
-```
-git clone https://gitlab.com/next-level-challenge/team-30.git
-```
-4. A folder called `team-30` will appear on your Desktop
-5. Move into that folder by running:
-```
-cd team-30
-```
-
-> ✅ You are now inside your team's repository folder. Any files you put here can be uploaded to GitLab.
-
----
-
-### ✅ Step 4 — Add your project files
-
-Copy or move all your project files (code, notebooks, scripts, data files, etc.) into the `team-30` folder on your computer.
-
-> ⚠️ Do **not** include passwords, API keys, or other sensitive information in your files!
-
----
-
-### ✅ Step 5 — Upload your code to GitLab
-
-Once your files are in the `team-30` folder, run these **3 commands** in your terminal. Make sure you are inside the `team-30` folder first (if you closed the terminal, re-open it and run `cd Desktop/team-30`).
-
-**Command 1** — Tell Git which files to include:
-```
-git add .
-```
-(The dot means "all files" — don't forget it!)
-
-**Command 2** — Save a snapshot of your work with a short description:
-```
-git commit -m "Update project"
-```
-(You can change "Update project" to anything you like, e.g. "Add machine learning model")
-
-**Command 3** — Upload everything to GitLab:
-```
-git push
-```
-
-> ✅ After running `git push`, come back to this GitLab page and refresh it. You should see your files listed here!
-
-> 🔁 **You can push as many times as you want.** Only the last version before the deadline counts, so don't be afraid to push often!
-
----
-
-### ✅ Step 6 — Verify your upload
-
-After pushing, refresh this GitLab page. You should see your files listed in the file browser above. If you can see them — you're all set! ✅
-
----
-
-## ⏰ Deadlines
-
-| What | Deadline |
-|---|---|
-| 💻 Code (this repository) | **Wednesday 11 March 2026 at 15:45** |
-| 📊 Pitch deck | **Wednesday 11 March 2026 at 15:45** |
-
-> ⚠️ After 15:45, the repository will be reviewed as-is. Make sure your final code is pushed on time!
-
----
-
-## 📊 How to submit your pitch deck
-
-Your pitch deck (PowerPoint or PDF) is submitted **separately** on the Next Level Challenge website — not here on GitLab.
-
-1. Go to 👉 [www.nextlevelchallenge.be](https://www.nextlevelchallenge.be)
-2. Log in with your account
-3. Go to the **Submission** tab
-4. Upload your pitch deck (PDF or PowerPoint)
-
-> ⚠️ Both your **code** (here on GitLab) and your **pitch deck** (on the website) must be submitted before **15:45 on Wednesday 11 March**!
-
----
-
-## ❓ Common problems
-
-**"Git is asking for a username and password — what do I enter?"**
-Enter your GitLab email address and password. If that doesn't work, you may need to use a Personal Access Token instead of your password — ask a crew member and they'll set it up for you in 2 minutes.
-
-**"I get an error saying 'Permission denied' or 'Repository not found'"**
-You probably haven't accepted your email invitation yet. Check your inbox for an email from GitLab and click the link to accept it. If you can't find it, ask a crew member.
-
-**"I accidentally deleted or broke something"**
-Don't panic! Git keeps a full history of everything. Ask a crew member and they can restore it.
-
-**"Two people edited the same file and now there's a conflict"**
-This is called a "merge conflict". It sounds scary but it's fixable. Ask a crew member for help.
-
-**"I don't have a terminal / I don't know how to open one"**
-- Windows: search for **Git Bash** in the Start menu
-- Mac: press **Cmd + Space**, type **Terminal**, press Enter
-- Or just ask a crew member — they'll get you started!
-
----
-
-## 🆘 Need help?
-
-Git can be confusing if it's your first time — **please do not hesitate to ask for help!**
-
-- 👟 Ask a **crew member** walking around the venue — they are there to help you!
-- 💬 Post a message on **Slack** and someone will get back to you quickly
-
-**Good luck and have fun! Build something amazing! 🚀**
-
----
-*Next Level Challenge 2026 — [nextlevelchallenge.be](https://www.nextlevelchallenge.be)*
+**Note**: This project was developed as part of the NextChallenge 2026 competition. It demonstrates integration of AI agents, data governance, and secure query execution.
