@@ -1,0 +1,126 @@
+{
+  "_comment": "Verified SQL queries sourced directly from the Collibra hackathon notebook. Known-correct answers included. SQLite adaptations: remove 'centercode.' prefix, replace ::int with CAST(), replace ::date with DATE(), replace true/false with 1/0.",
+  "_sqlite_notes": [
+    "Remove 'centercode.' schema prefix — tables are loaded flat into SQLite",
+    "Replace col::int with CAST(col AS INTEGER)",
+    "Replace col::date with DATE(col)",
+    "Replace boolean true/false with 1/0",
+    "Z_PRJ_NR in zcc_tkt_itm and zcc_ptm_lnk is the FK to zcc_prj_hdr.Z_PRJ_OID",
+    "Z_RTG_VAL in zcc_qa_sat is the satisfaction rating column (not Z_SAT_RTG)",
+    "zcc_qa_sat joins to zcc_prj_hdr on Z_PRJ_NR (not Z_PRJ_OID)",
+    "Z_SMTP_HSH in zcc_usr_mstr joins to Z_SMTP_ADR in zcc_prt_mtrc"
+  ],
+  "queries": [
+    {
+      "id": "ongoing_project_count",
+      "description": "How many projects are currently ongoing?",
+      "keywords": ["ongoing", "current projects", "how many projects", "active projects", "ongoing project"],
+      "verified_answer": "20",
+      "sql": "SELECT COUNT(*) AS ongoing_project_count\nFROM zcc_prj_hdr pr\nWHERE pr.Z_PRJ_STAT = 'Ongoing'"
+    },
+    {
+      "id": "total_feedback_tickets",
+      "description": "Total number of distinct feedback tickets across all projects",
+      "keywords": ["total feedback", "total tickets", "feedback tickets", "how many tickets", "number of tickets"],
+      "verified_answer": "486",
+      "sql": "SELECT COUNT(DISTINCT ft.Z_TKT_NR) AS total_feedback_tickets\nFROM zcc_tkt_itm ft"
+    },
+    {
+      "id": "latest_created_project",
+      "description": "What is the latest / most recently created project?",
+      "keywords": ["latest project", "newest project", "most recent project", "last project", "recently created"],
+      "verified_answer": "AI writing assistant for asset pages (Ongoing, 2026-02-23)",
+      "sql": "SELECT pr.Z_PRJ_TXT, pr.Z_PRJ_STAT, pr.Z_CRT_DAT\nFROM zcc_prj_hdr pr\nORDER BY pr.Z_CRT_DAT DESC\nLIMIT 1"
+    },
+    {
+      "id": "unique_participant_count",
+      "description": "How many unique participants are there across all projects?",
+      "keywords": ["unique participants", "total participants", "how many participants", "participant count", "distinct participants"],
+      "verified_answer": "1944",
+      "sql": "SELECT COUNT(DISTINCT pa.Z_SMTP_ADR) AS unique_participant_count\nFROM zcc_prt_mtrc pa"
+    },
+    {
+      "id": "top_10_projects_by_tickets",
+      "description": "Top 10 projects by number of feedback tickets submitted",
+      "keywords": ["top projects", "most tickets", "projects by tickets", "highest tickets", "top 10"],
+      "sql": "SELECT\n  pr.Z_PRJ_TXT,\n  COUNT(DISTINCT ft.Z_TKT_NR) AS ticket_count\nFROM zcc_prj_hdr pr\nJOIN zcc_tkt_itm ft ON pr.Z_PRJ_NR = ft.Z_PRJ_NR\nGROUP BY 1\nORDER BY 2 DESC\nLIMIT 10"
+    },
+    {
+      "id": "control_tower_participants",
+      "description": "How many participants are in the Control Tower program?",
+      "keywords": ["control tower", "participants", "control tower participants", "control tower program", "how many in control tower"],
+      "verified_answer": "135 participants",
+      "notes": "A participant is anyone in the project with a project_team. Requires join through zcc_ptm_lnk. Filter on Z_PRJ_TXT = 'Control Tower'.",
+      "sql": "SELECT\n  pr.Z_PRJ_OID,\n  pr.Z_PRJ_TXT,\n  COUNT(DISTINCT pa.Z_SMTP_ADR) AS participant_count\nFROM zcc_prj_hdr pr\nJOIN zcc_prt_mtrc pa ON pr.Z_PRJ_OID = pa.Z_PRJ_OID\nJOIN zcc_ptm_lnk pj ON pr.Z_PRJ_OID = pj.Z_PRJ_NR\nWHERE pr.Z_PRJ_TXT = 'Control Tower'\nGROUP BY pr.Z_PRJ_OID, pr.Z_PRJ_TXT"
+    },
+    {
+      "id": "satisfaction_specific_project",
+      "description": "Customer satisfaction rating for a specific named project",
+      "keywords": ["satisfaction", "rating", "customer satisfaction", "satisfaction score", "satisfaction during", "satisfaction for", "satisfaction project"],
+      "verified_answer": "4.5 for Technical Lineage for Google Dataplex via Edge",
+      "notes": "CRITICAL: satisfaction rating column is Z_RTG_VAL (not Z_SAT_RTG). zcc_qa_sat joins to zcc_prj_hdr on Z_PRJ_NR. Replace project name as needed.",
+      "sql": "SELECT\n  pr.Z_PRJ_TXT,\n  AVG(sa.Z_RTG_VAL * 1.00) AS rating\nFROM zcc_prj_hdr pr\nJOIN zcc_qa_sat sa ON pr.Z_PRJ_OID = sa.Z_PRJ_NR\nWHERE pr.Z_PRJ_TXT = 'Technical Lineage for Google Dataplex via Edge'\nGROUP BY pr.Z_PRJ_TXT"
+    },
+    {
+      "id": "satisfaction_all_projects",
+      "description": "Average satisfaction rating across all projects or per project",
+      "keywords": ["average satisfaction", "satisfaction across", "all projects satisfaction", "satisfaction by project", "satisfaction rating"],
+      "notes": "CRITICAL: satisfaction rating column is Z_RTG_VAL (not Z_SAT_RTG). zcc_qa_sat joins on Z_PRJ_NR.",
+      "sql": "SELECT\n  pr.Z_PRJ_TXT,\n  ROUND(AVG(sa.Z_RTG_VAL * 1.00), 2) AS avg_rating\nFROM zcc_prj_hdr pr\nJOIN zcc_qa_sat sa ON pr.Z_PRJ_OID = sa.Z_PRJ_NR\nGROUP BY pr.Z_PRJ_TXT\nORDER BY avg_rating DESC"
+    },
+    {
+      "id": "top5_ongoing_projects_issues",
+      "description": "Top 5 ongoing projects with the highest number of issues (excluding Not Applicable status)",
+      "keywords": ["issues", "ongoing projects issues", "highest issues", "top projects issues", "most issues", "driving issues"],
+      "verified_answer": "1. Technical lineage viewer (63), 2. Semantic Model Generation (39), 3. Early Adopters Unified Data (37), 4. Template project (33), 5. Derived relations (27)",
+      "notes": "Filter Z_TKT_ST != 'Not Applicable' AND Z_TKT_ART = 'issue'. A project without a participant is not considered ongoing.",
+      "sql": "SELECT\n  pr.Z_PRJ_TXT,\n  COUNT(DISTINCT ft.Z_TKT_NR) AS issue_total_count\nFROM zcc_prj_hdr pr\nJOIN zcc_tkt_itm ft ON pr.Z_PRJ_OID = ft.Z_PRJ_NR\nWHERE pr.Z_PRJ_STAT = 'Ongoing'\n  AND ft.Z_TKT_ST <> 'Not Applicable'\n  AND ft.Z_TKT_ART = 'issue'\nGROUP BY pr.Z_PRJ_TXT\nORDER BY issue_total_count DESC\nLIMIT 5"
+    },
+    {
+      "id": "top3_feature_improvements_ai_copilot",
+      "description": "Top 3 feature improvements (ideas) with highest impact score in Collibra AI Copilot project",
+      "keywords": ["feature improvements", "impact score", "collibra ai copilot", "implemented", "highest impact", "feature", "improvement"],
+      "verified_answer": "IDE-0016 (Implemented, 92), IDE-0006 (Open For Discussion, 78), IDE-0022 (New, 66)",
+      "notes": "Feature improvements = tickets with Z_TKT_ART = 'idea'. Status (implemented/open/new) is in Z_TKT_ST.",
+      "sql": "SELECT\n  ft.Z_SMTP_ADR,\n  ft.Z_TKT_NR AS ticket_id,\n  ft.Z_TKT_ST,\n  ft.Z_IMP_SC AS avg_impact_score\nFROM zcc_tkt_itm ft\nJOIN zcc_prj_hdr pr ON ft.Z_PRJ_NR = pr.Z_PRJ_OID\nWHERE pr.Z_PRJ_TXT = 'Collibra AI Copilot'\n  AND ft.Z_TKT_ART = 'idea'\nORDER BY ft.Z_IMP_SC DESC\nLIMIT 3"
+    },
+    {
+      "id": "top_feature_improvement_company",
+      "description": "Which participant from which company submitted at least 2 feature improvements with the biggest average impact?",
+      "keywords": ["company", "feature improvement", "biggest impact", "average impact", "submitted at least 2", "forge link"],
+      "verified_answer": "The Forge Link Dynamics — 2 tickets",
+      "notes": "Join zcc_tkt_itm to zcc_knt_mstr on Z_KNT_NR for company name (Z_KNT_TXT). Filter Z_TKT_ART = 'idea'. HAVING count >= 2.",
+      "sql": "SELECT\n  ft.Z_SMTP_ADR,\n  kn.Z_KNT_TXT,\n  COUNT(ft.Z_TKT_NR) AS ticket_count,\n  AVG(ft.Z_IMP_SC) AS avg_impact_score\nFROM zcc_tkt_itm ft\nJOIN zcc_knt_mstr kn ON ft.Z_KNT_NR = kn.Z_KNT_NR\nWHERE ft.Z_TKT_ART = 'idea'\nGROUP BY ft.Z_SMTP_ADR, kn.Z_KNT_TXT\nHAVING COUNT(ft.Z_TKT_NR) >= 2\nORDER BY avg_impact_score DESC\nLIMIT 5"
+    },
+    {
+      "id": "active_testers_control_tower",
+      "description": "How many active testers in the Control Tower project?",
+      "keywords": ["active tester", "active testers", "active user", "active users", "active participants", "control tower active", "control tower testers"],
+      "verified_answer": "5 active testers in Control Tower",
+      "notes": "Active Tester criteria (AT LEAST ONE): (1) feedback_tickets >= 3, (2) CAST(Z_SRV_CMP AS INTEGER) >= 2, (3) Z_ACT_CMP > Z_ACT_INC + Z_ACT_BLK + Z_ACT_OPT. Join tkt_itm on Z_SMTP_ADR AND Z_PRJ_OID = Z_PRJ_NR.",
+      "sql": "WITH feedback_completion AS (\n  SELECT\n    ft.Z_SMTP_ADR,\n    ft.Z_PRJ_NR,\n    COUNT(DISTINCT ft.Z_TKT_NR) AS feedback_ticket_count\n  FROM zcc_tkt_itm ft\n  GROUP BY ft.Z_SMTP_ADR, ft.Z_PRJ_NR\n),\nparticipant_status AS (\n  SELECT\n    pa.Z_SMTP_ADR,\n    pa.Z_PRJ_OID,\n    pa.Z_PRJ_TXT,\n    CASE\n      WHEN COALESCE(fc.feedback_ticket_count, 0) >= 3\n        OR CAST(COALESCE(pa.Z_SRV_CMP, 0) AS INTEGER) >= 2\n        OR COALESCE(pa.Z_ACT_CMP, 0)\n           > COALESCE(pa.Z_ACT_INC, 0)\n           + COALESCE(pa.Z_ACT_BLK, 0)\n           + COALESCE(pa.Z_ACT_OPT, 0)\n      THEN 1 ELSE 0\n    END AS is_active_tester\n  FROM zcc_prt_mtrc pa\n  LEFT JOIN feedback_completion fc\n    ON pa.Z_SMTP_ADR = fc.Z_SMTP_ADR\n    AND pa.Z_PRJ_OID = fc.Z_PRJ_NR\n  WHERE pa.Z_PRJ_TXT = 'Control Tower'\n)\nSELECT\n  ps.Z_PRJ_OID,\n  ps.Z_PRJ_TXT,\n  COUNT(DISTINCT CASE WHEN ps.is_active_tester = 1 THEN ps.Z_SMTP_ADR END) AS active_tester_count\nFROM participant_status ps\nGROUP BY ps.Z_PRJ_OID, ps.Z_PRJ_TXT"
+    },
+    {
+      "id": "active_testers_all_projects",
+      "description": "Active tester count for all projects (no project filter)",
+      "keywords": ["active tester", "active testers", "active users", "how many active", "all projects active"],
+      "notes": "Same CTE as control tower version — remove the WHERE clause on Z_PRJ_TXT.",
+      "sql": "WITH feedback_completion AS (\n  SELECT\n    ft.Z_SMTP_ADR,\n    ft.Z_PRJ_NR,\n    COUNT(DISTINCT ft.Z_TKT_NR) AS feedback_ticket_count\n  FROM zcc_tkt_itm ft\n  GROUP BY ft.Z_SMTP_ADR, ft.Z_PRJ_NR\n),\nparticipant_status AS (\n  SELECT\n    pa.Z_SMTP_ADR,\n    pa.Z_PRJ_OID,\n    pa.Z_PRJ_TXT,\n    CASE\n      WHEN COALESCE(fc.feedback_ticket_count, 0) >= 3\n        OR CAST(COALESCE(pa.Z_SRV_CMP, 0) AS INTEGER) >= 2\n        OR COALESCE(pa.Z_ACT_CMP, 0)\n           > COALESCE(pa.Z_ACT_INC, 0)\n           + COALESCE(pa.Z_ACT_BLK, 0)\n           + COALESCE(pa.Z_ACT_OPT, 0)\n      THEN 1 ELSE 0\n    END AS is_active_tester\n  FROM zcc_prt_mtrc pa\n  LEFT JOIN feedback_completion fc\n    ON pa.Z_SMTP_ADR = fc.Z_SMTP_ADR\n    AND pa.Z_PRJ_OID = fc.Z_PRJ_NR\n)\nSELECT\n  ps.Z_PRJ_TXT,\n  COUNT(DISTINCT CASE WHEN ps.is_active_tester = 1 THEN ps.Z_SMTP_ADR END) AS active_tester_count\nFROM participant_status ps\nGROUP BY ps.Z_PRJ_TXT\nORDER BY active_tester_count DESC"
+    },
+    {
+      "id": "projects_100_delta_impact_under_20_active_testers",
+      "description": "Preview projects with Delta Impact Score over 100% but fewer than 20 active testers",
+      "keywords": ["delta impact", "impact score", "100", "over 100", "fewer than 20", "less than 20 active", "despite"],
+      "verified_answer": "6 projects: Data Quality Rule Filtering, Snowflake 2.0 Lineage Harvester, Collibra AI SQL Assistant, New Data Marketplace experience, dbt Lineage Harvester, Databricks Unity Catalog integration",
+      "notes": "Delta Impact Score column is Z_HLT_DTA in zcc_prj_hdr. Active tester CTE same as above.",
+      "sql": "WITH feedback_completion AS (\n  SELECT ft.Z_SMTP_ADR, ft.Z_PRJ_NR,\n    COUNT(DISTINCT ft.Z_TKT_NR) AS feedback_ticket_count\n  FROM zcc_tkt_itm ft\n  GROUP BY ft.Z_SMTP_ADR, ft.Z_PRJ_NR\n),\nparticipant_status AS (\n  SELECT pa.Z_SMTP_ADR, pa.Z_PRJ_OID,\n    CASE\n      WHEN COALESCE(fc.feedback_ticket_count, 0) >= 3\n        OR CAST(COALESCE(pa.Z_SRV_CMP, 0) AS INTEGER) >= 2\n        OR COALESCE(pa.Z_ACT_CMP, 0) > COALESCE(pa.Z_ACT_INC, 0) + COALESCE(pa.Z_ACT_BLK, 0) + COALESCE(pa.Z_ACT_OPT, 0)\n      THEN 1 ELSE 0\n    END AS is_active_tester\n  FROM zcc_prt_mtrc pa\n  LEFT JOIN feedback_completion fc ON pa.Z_SMTP_ADR = fc.Z_SMTP_ADR AND pa.Z_PRJ_OID = fc.Z_PRJ_NR\n),\nactive_counts AS (\n  SELECT Z_PRJ_OID,\n    COUNT(DISTINCT CASE WHEN is_active_tester = 1 THEN Z_SMTP_ADR END) AS active_tester_count\n  FROM participant_status\n  GROUP BY Z_PRJ_OID\n)\nSELECT pr.Z_PRJ_OID, pr.Z_PRJ_TXT, pr.Z_HLT_DTA AS delta_impact_score, ac.active_tester_count\nFROM zcc_prj_hdr pr\nJOIN active_counts ac ON pr.Z_PRJ_OID = ac.Z_PRJ_OID\nWHERE pr.Z_HLT_DTA > 100\n  AND ac.active_tester_count < 20\nORDER BY pr.Z_HLT_DTA DESC"
+    },
+    {
+      "id": "most_active_participant_2025",
+      "description": "Most active participant for projects that started in 2025, balanced rank across feedback tickets and activities completed",
+      "keywords": ["most active", "active participant", "2025", "started 2025", "ranking", "combined rank", "balanced rank"],
+      "notes": "Activity = feedback tickets + activities. Rank on both metrics independently, sum ranks (lower combined rank = more active). Join zcc_usr_mstr via Z_SMTP_HSH = Z_SMTP_ADR. SQLite: use DATE() instead of ::date cast.",
+      "sql": "WITH feedback AS (\n  SELECT ft.Z_PRJ_NR, ft.Z_SMTP_ADR,\n    COUNT(DISTINCT ft.Z_TKT_NR) AS feedback_tickets\n  FROM zcc_tkt_itm ft\n  GROUP BY ft.Z_PRJ_NR, ft.Z_SMTP_ADR\n),\nuser_metrics AS (\n  SELECT\n    us.Z_KNT_NR,\n    ac.Z_KNT_TXT,\n    us.Z_SMTP_HSH,\n    COALESCE(SUM(f.feedback_tickets), 0) AS total_feedback_tickets,\n    COALESCE(SUM(pa.Z_ACT_CMP), 0) AS total_activities_completed\n  FROM zcc_prt_mtrc pa\n  JOIN zcc_prj_hdr pr ON pr.Z_PRJ_OID = pa.Z_PRJ_OID\n  JOIN zcc_usr_mstr us ON us.Z_SMTP_HSH = pa.Z_SMTP_ADR\n  JOIN zcc_knt_mstr ac ON ac.Z_KNT_NR = us.Z_KNT_NR\n  LEFT JOIN feedback f ON pa.Z_PRJ_OID = f.Z_PRJ_NR AND pa.Z_SMTP_ADR = f.Z_SMTP_ADR\n  WHERE DATE(pr.Z_CRT_DAT) >= '2025-01-01'\n    AND DATE(pr.Z_CRT_DAT) <= '2025-12-31'\n  GROUP BY us.Z_KNT_NR, ac.Z_KNT_TXT, us.Z_SMTP_HSH\n)\nSELECT Z_KNT_NR, Z_KNT_TXT, Z_SMTP_HSH,\n  total_feedback_tickets, total_activities_completed,\n  (total_feedback_tickets + total_activities_completed) AS combined_activity_score\nFROM user_metrics\nORDER BY combined_activity_score DESC\nLIMIT 10"
+    }
+  ]
+}

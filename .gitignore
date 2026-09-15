@@ -1,0 +1,57 @@
+# Logs
+logs/
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.Python
+env/
+venv/
+.env
+.venv
+dist/
+build/
+*.egg-info/
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+.npm
+dist/
+
+# Java
+*.class
+*.jar
+*.war
+*.ear
+target/
+
+# R
+.Rhistory
+.RData
+.Rproj.user/
+
+# IDE & editors
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Secrets & environment
+.env
+.env.local
+.env.*.local
+secrets/
+
+# Logs
+*.log
+logs/
+
+
+config.json

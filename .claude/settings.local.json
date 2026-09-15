@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(claude-api)",
+      "Bash(cd \"C:\\\\Bioinformatics\\\\Bioinfomatics\\\\NextChallenge\\\\team-30\" && .venv/Scripts/pip install -r requirements.txt 2>&1 | tail -20)",
+      "Bash(cd \"C:\\\\Bioinformatics\\\\Bioinfomatics\\\\NextChallenge\\\\team-30\" && .venv/Scripts/python scripts/verify_connections.py 2>&1)",
+      "Bash(cd \"C:\\\\Bioinformatics\\\\Bioinfomatics\\\\NextChallenge\\\\team-30\" && .venv/Scripts/uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload 2>&1)",
+      "Bash(cd \"C:\\\\Bioinformatics\\\\Bioinfomatics\\\\NextChallenge\\\\team-30\" && .venv/Scripts/uvicorn app.main:app --host 0.0.0.0 --port 8000 2>&1)",
+      "Bash(sleep 5 && cd \"C:\\\\Bioinformatics\\\\Bioinfomatics\\\\NextChallenge\\\\team-30\" && .venv/Scripts/uvicorn app.main:app --host 0.0.0.0 --port 8000 2>&1)"
+    ]
+  }
+}

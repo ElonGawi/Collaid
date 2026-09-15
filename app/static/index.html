@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ask Your Data | Collibra</title>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f5f6fa;
+      color: #1a1a2e;
+    }
+
+    body { display: flex; flex-direction: column; }
+
+    /* ── Header ── */
+    header {
+      flex-shrink: 0;
+      background: linear-gradient(135deg, #003366 0%, #0055a5 100%);
+      color: white;
+      padding: 16px 32px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    header h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.5px; }
+    header p { font-size: 0.85rem; opacity: 0.8; margin-top: 2px; }
+
+    /* ── Scrollable chat area ── */
+    .chat-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 24px 12px;
+    }
+    .chat-inner {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    /* ── Fixed input area at bottom ── */
+    .input-area {
+      flex-shrink: 0;
+      background: white;
+      border-top: 1.5px solid #e0e4ea;
+      padding: 12px 24px 16px;
+      box-shadow: 0 -2px 12px rgba(0,0,0,0.06);
+    }
+    .input-inner {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    /* Controls row: model + verbosity + spacer + session + new-chat */
+    .controls-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+    }
+
+    /* Compose row: textarea + submit */
+    .compose-row {
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+    }
+    .compose-row textarea {
+      flex: 1;
+      border: 1.5px solid #d0d5dd;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 0.95rem;
+      font-family: inherit;
+      resize: none;
+      min-height: 44px;
+      max-height: 180px;
+      overflow-y: auto;
+      transition: border-color 0.2s;
+      outline: none;
+      line-height: 1.5;
+    }
+    .compose-row textarea:focus { border-color: #0055a5; }
+
+    /* ── Buttons ── */
+    button {
+      background: #0055a5;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 22px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, opacity 0.2s;
+      white-space: nowrap;
+    }
+    button:hover:not(:disabled) { background: #003d80; }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .secondary-btn {
+      background: transparent;
+      color: #0055a5;
+      border: 1.5px solid #0055a5;
+      padding: 6px 14px;
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+    .secondary-btn:hover:not(:disabled) { background: #e8f0fb; }
+
+    #submit-btn { flex-shrink: 0; align-self: flex-end; height: 44px; }
+
+    /* ── Model selector ── */
+    .model-selector { display: flex; align-items: center; gap: 8px; }
+    .model-selector label {
+      font-weight: 600; font-size: 0.78rem; color: #555; white-space: nowrap; margin-bottom: 0;
+    }
+    .model-selector select {
+      border: 1.5px solid #d0d5dd; border-radius: 6px; padding: 4px 8px;
+      font-size: 0.82rem; font-family: inherit; background: white; cursor: pointer; outline: none;
+    }
+    .model-selector select:focus { border-color: #0055a5; }
+    .model-badge { font-size: 0.7rem; padding: 2px 7px; border-radius: 10px; font-weight: 600; }
+    .badge-sonnet { background: #dbeafe; color: #1e40af; }
+    .badge-opus   { background: #ede9fe; color: #5b21b6; }
+    .badge-haiku  { background: #d1fae5; color: #065f46; }
+
+    /* ── Verbosity segmented control ── */
+    .verbosity-row { display: flex; align-items: center; gap: 8px; }
+    .v-label { font-size: 0.78rem; font-weight: 600; color: #555; white-space: nowrap; }
+    .seg-ctrl { display: flex; border: 1.5px solid #d0d5dd; border-radius: 7px; overflow: hidden; }
+    .seg-btn {
+      background: white; color: #555; border: none;
+      padding: 4px 12px; font-size: 0.78rem; font-weight: 500;
+      cursor: pointer; border-right: 1px solid #d0d5dd; transition: background 0.15s, color 0.15s;
+    }
+    .seg-btn:last-child { border-right: none; }
+    .seg-btn:hover:not(.active) { background: #f0f3f8; }
+    .seg-btn.active { background: #0055a5; color: white; font-weight: 600; }
+
+    /* ── Session bar ── */
+    .session-bar {
+      display: none;
+      font-size: 0.72rem; color: #999;
+      padding: 3px 8px; background: #f0f3f8; border-radius: 5px;
+      white-space: nowrap;
+    }
+    .session-bar.visible { display: inline-block; }
+
+    /* ── Samples (shown in chat area when empty) ── */
+    .samples { padding: 32px 0 16px; }
+    .samples-heading {
+      font-size: 0.82rem; color: #888; margin-bottom: 10px; text-align: center;
+    }
+    .samples-grid { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+    .sample-btn {
+      background: white; color: #0055a5;
+      border: 1.5px solid #d0d5dd; border-radius: 20px;
+      padding: 7px 16px; font-size: 0.82rem; font-weight: 500;
+      cursor: pointer; transition: border-color 0.15s, background 0.15s;
+    }
+    .sample-btn:hover { border-color: #0055a5; background: #e8f0fb; }
+
+    /* ── Verbosity gating ── */
+    #chat-history.vb-business .vs-sql,
+    #chat-history.vb-business .vs-governed,
+    #chat-history.vb-business .vs-notes,
+    #chat-history.vb-business .tool-trace-toggle,
+    #chat-history.vb-business .meta-bar { display: none; }
+
+    #chat-history.vb-standard .vs-sql,
+    #chat-history.vb-standard .vs-governed { display: none; }
+
+    /* ── Chat bubbles ── */
+    #chat-history { margin-bottom: 8px; }
+    .chat-exchange { margin-bottom: 24px; }
+
+    .msg-user { display: flex; justify-content: flex-end; margin-bottom: 10px; }
+    .msg-user-bubble {
+      background: #0055a5; color: white;
+      border-radius: 18px 18px 4px 18px;
+      padding: 11px 16px; max-width: 72%;
+      font-size: 0.95rem; line-height: 1.5; word-break: break-word;
+    }
+
+    .msg-claude { display: flex; gap: 10px; align-items: flex-start; }
+    .msg-avatar {
+      width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+      background: linear-gradient(135deg, #003366, #0055a5);
+      color: white; font-size: 0.72rem; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      margin-top: 2px;
+    }
+    .msg-claude-content { flex: 1; min-width: 0; }
+
+    /* ── Panel (Claude answer card) ── */
+    .panel {
+      background: white;
+      border-radius: 12px;
+      padding: 20px 24px;
+      box-shadow: 0 1px 8px rgba(0,0,0,0.07);
+      margin-bottom: 6px;
+    }
+
+    /* ── Markdown ── */
+    .answer-content h3 { font-size: 1rem; font-weight: 700; margin: 18px 0 8px; color: #1a1a2e; }
+    .answer-content h3:first-child { margin-top: 0; }
+    .answer-content p { line-height: 1.65; margin-bottom: 12px; color: #333; }
+    .answer-content ul, .answer-content ol { padding-left: 20px; margin-bottom: 12px; }
+    .answer-content li { line-height: 1.6; margin-bottom: 4px; }
+    .answer-content strong { color: #1a1a2e; }
+    .answer-content pre {
+      background: #f6f8fa; border-radius: 8px; padding: 14px;
+      overflow-x: auto; margin: 10px 0;
+    }
+    .answer-content code {
+      font-family: "SFMono-Regular", Consolas, monospace; font-size: 0.87rem;
+    }
+    .answer-content p code { background: #f0f3f8; padding: 2px 6px; border-radius: 4px; }
+    .answer-content table {
+      border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 0.88rem;
+    }
+    .answer-content th, .answer-content td {
+      border: 1px solid #e0e4ea; padding: 7px 11px; text-align: left;
+    }
+    .answer-content th { background: #f0f3f8; font-weight: 600; }
+
+    /* ── Meta bar ── */
+    .meta-bar {
+      font-size: 0.78rem; color: #aaa; padding: 8px 0 0;
+      border-top: 1px solid #f0f0f0; margin-top: 6px;
+    }
+
+    /* ── Tool trace ── */
+    details { margin-bottom: 6px; }
+    summary {
+      cursor: pointer; font-size: 0.85rem; font-weight: 600;
+      color: #444; padding: 6px 0; list-style: none;
+      display: flex; align-items: center; gap: 8px;
+    }
+    summary::-webkit-details-marker { display: none; }
+    summary::before { content: "▶"; font-size: 0.68rem; color: #0055a5; transition: transform 0.2s; }
+    details[open] summary::before { transform: rotate(90deg); }
+
+    .tool-trace-toggle { margin-bottom: 16px; }
+    .tool-trace-toggle > summary { font-size: 0.8rem; color: #888; font-weight: 500; }
+
+    .tool-body {
+      background: #f6f8fa; border-radius: 8px; padding: 10px 12px;
+      margin-top: 6px; font-size: 0.8rem; color: #444;
+    }
+    .tool-body pre {
+      white-space: pre-wrap; word-break: break-word;
+      font-family: "SFMono-Regular", Consolas, monospace; font-size: 0.78rem; margin: 0;
+    }
+    .tool-tag {
+      display: inline-block; font-size: 0.7rem; font-weight: 700;
+      padding: 2px 7px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.4px;
+    }
+    .tag-search { background: #dbeafe; color: #1e40af; }
+    .tag-def    { background: #d1fae5; color: #065f46; }
+    .tag-rel    { background: #fef3c7; color: #92400e; }
+    .tag-schema { background: #ede9fe; color: #5b21b6; }
+    .tag-sql    { background: #fee2e2; color: #991b1b; }
+
+    /* ── Status panel (inside chat area) ── */
+    .status-panel {
+      display: none;
+      background: white;
+      border-radius: 12px;
+      padding: 14px 18px;
+      box-shadow: 0 1px 8px rgba(0,0,0,0.07);
+      margin-bottom: 16px;
+      max-height: 240px;
+      overflow-y: auto;
+    }
+    .status-panel.visible { display: block; }
+
+    .status-row {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 5px 0 5px 10px;
+      border-left: 3px solid #d0d5dd;
+      margin-bottom: 3px;
+      font-size: 0.83rem; color: #333;
+    }
+    .status-row.thinking  { border-color: #3b82f6; }
+    .status-row.tool-start{ border-color: #f59e0b; }
+    .status-row.tool-done { border-color: #10b981; }
+    .status-row.error     { border-color: #ef4444; color: #b91c1c; }
+
+    .status-icon    { font-size: 0.88rem; flex-shrink: 0; margin-top: 1px; }
+    .status-content { flex: 1; min-width: 0; }
+    .status-msg     { line-height: 1.4; }
+    .status-elapsed { font-size: 0.72rem; color: #bbb; margin-left: auto; flex-shrink: 0; padding-top: 2px; }
+
+    .status-details { margin-top: 4px; }
+    .status-details summary {
+      font-size: 0.73rem; color: #0055a5; padding: 0; font-weight: 500; list-style: none;
+    }
+    .status-details summary::-webkit-details-marker { display: none; }
+    .status-details summary::before { content: "▶ "; font-size: 0.62rem; }
+    .status-details[open] summary::before { content: "▼ "; }
+    .status-details pre {
+      background: #f6f8fa; border-radius: 6px; padding: 7px 9px;
+      font-size: 0.73rem; margin-top: 4px; white-space: pre-wrap;
+      word-break: break-word; font-family: "SFMono-Regular", Consolas, monospace;
+      max-height: 160px; overflow-y: auto;
+    }
+
+    /* ── Error ── */
+    .error-panel {
+      background: #fff5f5; border: 1.5px solid #fca5a5; border-radius: 10px;
+      padding: 14px 18px; color: #b91c1c; margin-bottom: 16px; display: none;
+    }
+    .error-panel.visible { display: block; }
+    .error-panel strong { display: block; margin-bottom: 4px; }
+
+    /* ── Misc badges ── */
+    .badge {
+      display: inline-block; font-size: 0.7rem; font-weight: 700;
+      padding: 2px 9px; border-radius: 20px; margin-left: 10px; vertical-align: middle;
+    }
+    .badge-governed { background: #d1fae5; color: #065f46; }
+
+    /* ── Spinner ── */
+    .spinner {
+      display: inline-block; width: 14px; height: 14px;
+      border: 2px solid rgba(255,255,255,0.4); border-top-color: white;
+      border-radius: 50%; animation: spin 0.7s linear infinite;
+      vertical-align: middle; margin-right: 5px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Landing screen ── */
+    .landing-screen {
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      padding: 24px;
+    }
+    body.has-conversation .landing-screen { display: none; }
+
+    .landing-inner {
+      width: 100%; max-width: 680px;
+      display: flex; flex-direction: column; align-items: center; gap: 20px;
+      text-align: center;
+    }
+    .landing-title { font-size: 1.8rem; font-weight: 700; color: #1a1a2e; }
+    .landing-sub   { font-size: 0.95rem; color: #666; }
+
+    .landing-compose {
+      width: 100%; display: flex; flex-direction: column; gap: 10px;
+    }
+    .landing-compose textarea {
+      width: 100%; border: 1.5px solid #d0d5dd; border-radius: 12px;
+      padding: 14px 16px; font-size: 1rem; font-family: inherit;
+      resize: none; outline: none; transition: border-color 0.2s;
+      min-height: 80px;
+    }
+    .landing-compose textarea:focus { border-color: #0055a5; }
+    .landing-compose button {
+      align-self: flex-end; padding: 10px 28px;
+    }
+
+    .landing-settings {
+      display: flex; align-items: center; gap: 14px; flex-wrap: wrap; justify-content: center;
+    }
+
+    /* ── Chat-state visibility ── */
+    body:not(.has-conversation) .chat-area,
+    body:not(.has-conversation) .input-area { display: none; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Ask Your Data <span class="badge badge-governed">Governed by Collibra</span></h1>
+  <p>Ask a business question — get a trustworthy, context-grounded answer from your governed data.</p>
+</header>
+
+<!-- Landing screen (shown before first question) -->
+<div class="landing-screen" id="landing-screen">
+  <div class="landing-inner">
+    <h2 class="landing-title">What do you want to know?</h2>
+    <p class="landing-sub">Ask about your governed data — grounded in Collibra definitions.</p>
+    <div class="landing-compose">
+      <textarea id="landing-question" rows="3"
+        placeholder="e.g. What is the average satisfaction rating across all projects?"></textarea>
+      <button id="landing-submit-btn" onclick="askFromLanding()">Ask</button>
+    </div>
+    <div class="landing-settings">
+      <div class="model-selector">
+        <label for="landing-model-select">Model</label>
+        <select id="landing-model-select" onchange="syncModelFromLanding()">
+          <option value="claude-sonnet-4-6">Claude Sonnet 4.6</option>
+          <option value="claude-opus-4-6">Claude Opus 4.6</option>
+          <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5</option>
+        </select>
+        <span id="landing-model-badge" class="model-badge badge-sonnet">Balanced</span>
+      </div>
+      <div class="verbosity-row">
+        <span class="v-label">Detail</span>
+        <div class="seg-ctrl">
+          <button class="seg-btn" data-v="business" onclick="setVerbosity('business')">Business</button>
+          <button class="seg-btn active" data-v="standard" onclick="setVerbosity('standard')">Standard</button>
+          <button class="seg-btn" data-v="technical" onclick="setVerbosity('technical')">Technical</button>
+        </div>
+      </div>
+    </div>
+    <div class="samples-grid" id="landing-samples-grid"></div>
+  </div>
+</div>
+
+<!-- Scrollable conversation area -->
+<div class="chat-area" id="chat-area">
+  <div class="chat-inner">
+
+    <!-- Samples (hidden once conversation starts) -->
+    <div class="samples" id="samples-section">
+      <p class="samples-heading">Try a sample question</p>
+      <div class="samples-grid" id="samples-grid"></div>
+    </div>
+
+    <!-- Chat history (bubbles) -->
+    <div id="chat-history"></div>
+
+    <!-- Live status during processing -->
+    <div class="status-panel" id="status-panel">
+      <div id="status-log"></div>
+    </div>
+
+    <!-- Error -->
+    <div class="error-panel" id="error-panel">
+      <strong>Error</strong>
+      <span id="error-text"></span>
+    </div>
+
+  </div>
+</div>
+
+<!-- Pinned input area -->
+<div class="input-area">
+  <div class="input-inner">
+
+    <!-- Controls row -->
+    <div class="controls-row">
+      <div class="model-selector">
+        <label for="model-select">Model</label>
+        <select id="model-select" onchange="updateModelBadge()">
+          <option value="claude-sonnet-4-6">Claude Sonnet 4.6</option>
+          <option value="claude-opus-4-6">Claude Opus 4.6</option>
+          <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5</option>
+        </select>
+        <span id="model-badge" class="model-badge badge-sonnet">Balanced</span>
+      </div>
+
+      <div class="verbosity-row">
+        <span class="v-label">Detail</span>
+        <div class="seg-ctrl" id="verbosity-ctrl">
+          <button class="seg-btn" data-v="business" onclick="setVerbosity('business')">Business</button>
+          <button class="seg-btn active" data-v="standard" onclick="setVerbosity('standard')">Standard</button>
+          <button class="seg-btn" data-v="technical" onclick="setVerbosity('technical')">Technical</button>
+        </div>
+      </div>
+
+      <div style="flex:1"></div>
+
+      <span class="session-bar" id="session-bar"></span>
+      <button id="new-chat-btn" class="secondary-btn" onclick="newChat()" style="display:none;">New Chat</button>
+    </div>
+
+    <!-- Compose row -->
+    <div class="compose-row">
+      <textarea id="question" rows="1"
+        placeholder="Ask a question about your data… (Ctrl+Enter to submit)"></textarea>
+      <button id="submit-btn" onclick="askQuestion()">Ask</button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  const SAMPLES = [
+    "What is an 'Active Tester'?",
+    "What is the average satisfaction rating across all projects?",
+    "How many feedback tickets are there per type?",
+    "Which 5 projects have the most participants?",
+    "Which projects have a satisfaction rating below 3.5?",
+    "What is Centercode?",
+    "For each ongoing project, what percentage of participants are active testers?",
+  ];
+
+  const TAG_CLASSES = {
+    search_business_terms: "tag-search",
+    get_asset_definition:  "tag-def",
+    get_asset_relations:   "tag-rel",
+    get_physical_schema:   "tag-schema",
+    execute_sql:           "tag-sql",
+  };
+
+  // Session state
+  let currentSessionId = null;
+  let chatHistory = [];
+  let pendingQuestion = "";
+
+  // Render sample buttons (chat area + landing)
+  function buildSampleGrid(gridId, clickHandler) {
+    const grid = document.getElementById(gridId);
+    SAMPLES.forEach(q => {
+      const btn = document.createElement("button");
+      btn.className = "sample-btn";
+      btn.textContent = q;
+      btn.onclick = () => clickHandler(q);
+      grid.appendChild(btn);
+    });
+  }
+
+  buildSampleGrid("samples-grid", q => {
+    document.getElementById("question").value = q;
+    autoResizeTextarea();
+    askQuestion();
+  });
+
+  buildSampleGrid("landing-samples-grid", q => {
+    document.getElementById("landing-question").value = q;
+    askFromLanding();
+  });
+
+  const MODEL_META = {
+    "claude-sonnet-4-6":         { label: "Balanced",     cls: "badge-sonnet" },
+    "claude-opus-4-6":           { label: "Most capable", cls: "badge-opus"   },
+    "claude-haiku-4-5-20251001": { label: "Fastest",      cls: "badge-haiku"  },
+  };
+
+  function updateModelBadge() {
+    const model = document.getElementById("model-select").value;
+    const badge = document.getElementById("model-badge");
+    const meta = MODEL_META[model] || { label: model, cls: "badge-sonnet" };
+    badge.textContent = meta.label;
+    badge.className = "model-badge " + meta.cls;
+  }
+
+  function syncModelFromLanding() {
+    const model = document.getElementById("landing-model-select").value;
+    const meta = MODEL_META[model] || { label: model, cls: "badge-sonnet" };
+    const badge = document.getElementById("landing-model-badge");
+    badge.textContent = meta.label;
+    badge.className = "model-badge " + meta.cls;
+    // keep chat selector in sync
+    document.getElementById("model-select").value = model;
+    updateModelBadge();
+  }
+
+  function askFromLanding() {
+    const q = document.getElementById("landing-question").value.trim();
+    if (!q) return;
+    // sync model from landing selector
+    const landingModel = document.getElementById("landing-model-select").value;
+    document.getElementById("model-select").value = landingModel;
+    updateModelBadge();
+    // copy question to main input and switch to chat state
+    document.getElementById("question").value = q;
+    document.body.classList.add("has-conversation");
+    askQuestion();
+  }
+
+  // Auto-resize textarea as user types
+  function autoResizeTextarea() {
+    const ta = document.getElementById("question");
+    ta.style.height = "auto";
+    ta.style.height = Math.min(ta.scrollHeight, 180) + "px";
+  }
+  document.getElementById("question").addEventListener("input", autoResizeTextarea);
+
+  let _startTime = 0;
+
+  function scrollChatToBottom() {
+    const area = document.getElementById("chat-area");
+    area.scrollTop = area.scrollHeight;
+  }
+
+  function clearStatusLog() {
+    document.getElementById("status-log").innerHTML = "";
+  }
+
+  function showStatusPanel() {
+    document.getElementById("status-panel").classList.add("visible");
+    scrollChatToBottom();
+  }
+
+  function hideStatusPanel() {
+    document.getElementById("status-panel").classList.remove("visible");
+  }
+
+  function _elapsed() {
+    return ((Date.now() - _startTime) / 1000).toFixed(1) + "s";
+  }
+
+  function appendStatus(type, message, inputObj, toolName) {
+    const log = document.getElementById("status-log");
+    const icons = { thinking: "💭", tool: "🔧", error: "❌" };
+    const icon = icons[type] || "•";
+    const rowClass = type === "tool" ? "tool-start" : type;
+
+    const row = document.createElement("div");
+    row.className = `status-row ${rowClass}`;
+    if (toolName) row.dataset.tool = toolName;
+
+    let detailsHtml = "";
+    if (inputObj) {
+      detailsHtml = `
+        <details class="status-details">
+          <summary>show input</summary>
+          <pre>${JSON.stringify(inputObj, null, 2)}</pre>
+        </details>`;
+    }
+
+    row.innerHTML = `
+      <span class="status-icon">${icon}</span>
+      <div class="status-content">
+        <div class="status-msg">${message}</div>
+        ${detailsHtml}
+      </div>
+      <span class="status-elapsed">${_elapsed()}</span>
+    `;
+
+    log.appendChild(row);
+    log.scrollTop = log.scrollHeight;
+    scrollChatToBottom();
+    return row;
+  }
+
+  function updateLastToolStatus(event) {
+    const log = document.getElementById("status-log");
+    const rows = log.querySelectorAll(`.status-row.tool-start[data-tool="${event.tool}"]`);
+    const lastRow = rows[rows.length - 1];
+    if (lastRow) {
+      lastRow.classList.remove("tool-start");
+      lastRow.classList.add("tool-done");
+      lastRow.querySelector(".status-icon").textContent = "✅";
+      const msgEl = lastRow.querySelector(".status-msg");
+      if (msgEl) msgEl.textContent = event.summary || event.message;
+      const elapsed = lastRow.querySelector(".status-elapsed");
+      if (elapsed) elapsed.textContent = _elapsed();
+    }
+    log.scrollTop = log.scrollHeight;
+  }
+
+  function enableInput() {
+    document.getElementById("submit-btn").disabled = false;
+    document.getElementById("submit-btn").innerHTML = "Ask";
+    document.getElementById("question").focus();
+  }
+
+  /* ── Section splitting ── */
+  function splitAnswerSections(markdown) {
+    const result = { answer: "", sql: "", governed: "", notes: "", other: "" };
+    const parts = markdown.split(/\n(?=### )/);
+    for (const part of parts) {
+      const m = part.match(/^### (.+?)\n([\s\S]*)/);
+      if (!m) { result.answer += part; continue; }
+      const heading = m[1].trim().toLowerCase();
+      const body = `### ${m[1]}\n${m[2]}`;
+      if (heading === "answer") result.answer = m[2].trim();
+      else if (heading.includes("sql")) result.sql = body;
+      else if (heading.includes("governed") || heading.includes("definition")) result.governed = body;
+      else if (heading.includes("data quality") || heading.includes("notes")) result.notes = body;
+      else result.other += body + "\n";
+    }
+    return result;
+  }
+
+  /* ── Verbosity ── */
+  let verbosityLevel = "standard";
+
+  function setVerbosity(level) {
+    verbosityLevel = level;
+    const hist = document.getElementById("chat-history");
+    hist.className = hist.className.replace(/\bvb-\w+/g, "");
+    hist.classList.add("vb-" + level);
+    document.querySelectorAll(".seg-btn").forEach(b =>
+      b.classList.toggle("active", b.dataset.v === level)
+    );
+  }
+
+  /* ── Add exchange to chat ── */
+  function addExchangeToChatHistory(question, data) {
+    chatHistory.push({ question, answer: data.answer, tool_calls: data.tool_calls, iterations: data.iterations });
+
+    const modelName = document.getElementById("model-select").options[
+      document.getElementById("model-select").selectedIndex
+    ].text;
+    const container = document.getElementById("chat-history");
+
+    const exchange = document.createElement("div");
+    exchange.className = "chat-exchange";
+
+    // Tool trace HTML
+    let toolTraceHtml = "";
+    if (!data.tool_calls || data.tool_calls.length === 0) {
+      toolTraceHtml = "<p style='color:#aaa; font-size:0.82rem;'>No tool calls recorded.</p>";
+    } else {
+      data.tool_calls.forEach(call => {
+        const tagClass = TAG_CLASSES[call.tool] || "tag-schema";
+        toolTraceHtml += `
+          <details>
+            <summary>
+              <span class="tool-tag ${tagClass}">${call.tool}</span>
+              &nbsp;${call.summary || ""}
+            </summary>
+            <div class="tool-body">
+              <strong>Input:</strong>
+              <pre>${JSON.stringify(call.input, null, 2)}</pre>
+              <strong style="display:block; margin-top:8px;">Result summary:</strong>
+              <pre>${call.summary}</pre>
+            </div>
+          </details>`;
+      });
+    }
+
+    const sections = splitAnswerSections(data.answer || "(no answer)");
+    const nSteps = data.iterations;
+    const nTools = data.tool_calls ? data.tool_calls.length : 0;
+
+    exchange.innerHTML = `
+      <div class="msg-user">
+        <div class="msg-user-bubble">${escapeHtml(question)}</div>
+      </div>
+      <div class="msg-claude">
+        <div class="msg-avatar">A</div>
+        <div class="msg-claude-content">
+          <div class="panel">
+            <div class="vs-answer answer-content">${marked.parse(sections.answer || "(no answer)")}</div>
+            <div class="vs-notes answer-content">${sections.notes ? marked.parse(sections.notes) : ""}</div>
+            <div class="vs-sql answer-content">${sections.sql ? marked.parse(sections.sql) : ""}</div>
+            <div class="vs-governed answer-content">${sections.governed ? marked.parse(sections.governed) : ""}</div>
+            ${sections.other ? `<div class="vs-other answer-content">${marked.parse(sections.other)}</div>` : ""}
+            <div class="meta-bar">${nSteps} reasoning step${nSteps !== 1 ? "s" : ""}  ·  ${nTools} tool call${nTools !== 1 ? "s" : ""}  ·  ${modelName}</div>
+          </div>
+          <details class="tool-trace-toggle">
+            <summary>Reasoning trace (${nTools} tool call${nTools !== 1 ? "s" : ""})</summary>
+            <div class="panel">${toolTraceHtml}</div>
+          </details>
+        </div>
+      </div>
+    `;
+
+    container.appendChild(exchange);
+
+    // Syntax-highlight code blocks
+    exchange.querySelectorAll(".answer-content pre code").forEach(el => hljs.highlightElement(el));
+
+    // Hide samples once conversation starts
+    if (chatHistory.length > 0) {
+      document.getElementById("samples-section").style.display = "none";
+      document.getElementById("new-chat-btn").style.display = "";
+    }
+
+    // Update session bar
+    if (currentSessionId) {
+      const bar = document.getElementById("session-bar");
+      bar.textContent = `Session ${currentSessionId.slice(0, 8)}… · ${chatHistory.length} exchange${chatHistory.length !== 1 ? "s" : ""}`;
+      bar.classList.add("visible");
+    }
+
+    scrollChatToBottom();
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement("div");
+    div.appendChild(document.createTextNode(text));
+    return div.innerHTML;
+  }
+
+  function newChat() {
+    currentSessionId = null;
+    chatHistory = [];
+    pendingQuestion = "";
+    document.getElementById("chat-history").innerHTML = "";
+    document.getElementById("error-panel").classList.remove("visible");
+    document.getElementById("samples-section").style.display = "";
+    document.getElementById("new-chat-btn").style.display = "none";
+    document.getElementById("session-bar").classList.remove("visible");
+    const ta = document.getElementById("question");
+    ta.value = "";
+    ta.style.height = "auto";
+    // return to landing
+    document.body.classList.remove("has-conversation");
+    document.getElementById("landing-question").value = "";
+    document.getElementById("landing-question").focus();
+  }
+
+  function handleStreamEvent(event) {
+    switch (event.type) {
+      case "thinking":
+        appendStatus("thinking", event.message);
+        break;
+      case "tool_start":
+        appendStatus("tool", event.message, event.input, event.tool);
+        break;
+      case "tool_done":
+        updateLastToolStatus(event);
+        break;
+      case "done":
+        currentSessionId = event.session_id;
+        hideStatusPanel();
+        addExchangeToChatHistory(pendingQuestion, event);
+        enableInput();
+        break;
+      case "error":
+        hideStatusPanel();
+        showError(event.message);
+        enableInput();
+        break;
+    }
+  }
+
+  async function askQuestion() {
+    const question = document.getElementById("question").value.trim();
+    if (!question) return;
+    const model = document.getElementById("model-select").value;
+
+    pendingQuestion = question;
+
+    const btn = document.getElementById("submit-btn");
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Working...';
+
+    document.getElementById("error-panel").classList.remove("visible");
+    const ta = document.getElementById("question");
+    ta.value = "";
+    ta.style.height = "auto";
+
+    clearStatusLog();
+    showStatusPanel();
+    _startTime = Date.now();
+
+    try {
+      const body = { question, model };
+      if (currentSessionId) body.session_id = currentSessionId;
+
+      const res = await fetch("/api/ask/stream", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const parts = buffer.split("\n\n");
+        buffer = parts.pop();
+        for (const part of parts) {
+          const line = part.replace(/^data: /, "").trim();
+          if (!line) continue;
+          try {
+            handleStreamEvent(JSON.parse(line));
+          } catch (e) {
+            console.warn("Failed to parse SSE event:", line);
+          }
+        }
+      }
+
+    } catch (err) {
+      hideStatusPanel();
+      showError(err.message || "Network error");
+      enableInput();
+    }
+  }
+
+  function showError(msg) {
+    document.getElementById("error-text").textContent = msg;
+    document.getElementById("error-panel").classList.add("visible");
+    scrollChatToBottom();
+  }
+
+  // Ctrl+Enter / Cmd+Enter to submit
+  document.getElementById("question").addEventListener("keydown", e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") askQuestion();
+  });
+  document.getElementById("landing-question").addEventListener("keydown", e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") askFromLanding();
+  });
+
+  // Set initial verbosity
+  setVerbosity("standard");
+</script>
+
+</body>
+</html>
