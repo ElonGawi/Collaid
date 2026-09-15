@@ -1,4 +1,4 @@
-# Next Level Challenge 2026 — Team 30
+# Next Level Challenge 24h Hackathon - 2026 — Team 30
 
 Welcome to your team's code repository! 🎉
 
